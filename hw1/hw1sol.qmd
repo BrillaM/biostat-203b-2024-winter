@@ -49,8 +49,8 @@ sessionInfo()
 This exercise (and later in this course) uses the [MIMIC-IV data v2.2](https://physionet.org/content/mimiciv/2.2/), a freely accessible critical care database developed by the MIT Lab for Computational Physiology. Follow the instructions at <https://mimic.mit.edu/docs/gettingstarted/> to (1) complete the CITI `Data or Specimens Only Research` course and (2) obtain the PhysioNet credential for using the MIMIC-IV data. Display the verification links to your completion report and completion certificate here. **You must complete Q2 before working on the remaining questions.** (Hint: The CITI training takes a few hours and the PhysioNet credentialing takes a couple days; do not leave it to the last minute.)
 
 **Answer:**: I completed the CITI training and obtained the PhysioNet credential. 
-Here are the links to my [completion report](https://www.citiprogram.org/verify/?k18e63246-0e34-41dc-b830-7180433d8b60-60431015).
-Here are the  links to my [completion certificate](https://www.citiprogram.org/verify/?wd573758d-eb45-443c-8b75-37f495dcdc40-60431015)
+Here is the link to my [completion report](https://www.citiprogram.org/verify/?k18e63246-0e34-41dc-b830-7180433d8b60-60431015).
+Here is the link to my [completion certificate](https://www.citiprogram.org/verify/?wd573758d-eb45-443c-8b75-37f495dcdc40-60431015).
 
 ## Q3. Linux Shell Commands
 
@@ -62,14 +62,29 @@ ls -l ~/mimic/
 Refer to the documentation <https://physionet.org/content/mimiciv/2.2/> for details of data files. Please, do **not** put these data files into Git; they are big. Do **not** copy them into your directory. Do **not** decompress the gz data files. These create unnecessary big files and are not big-data-friendly practices. Read from the data folder `~/mimic` directly in following exercises. 
 
   Use Bash commands to answer following questions.
+  
+**Answer:**: I created a symbolic link `mimic` to my MIMIC data folder.
+```{bash}
+ls -l ~/mimic/
+```
 
 2. Display the contents in the folders `hosp` and `icu` using Bash command `ls -l`. Why are these data files distributed as `.csv.gz` files instead of `.csv` (comma separated values) files? Read the page <https://mimic.mit.edu/docs/iv/> to understand what's in each folder.
 
+**Answer** :The data files are distributed as `.csv.gz` files because they are compressed. The data files are big and it is more efficient to store them in compressed format.
+```{bash}
+ls -l ~/mimic/hosp
+ls -l ~/mimic/icu
+```
+
+
 3. Briefly describe what Bash commands `zcat`, `zless`, `zmore`, and `zgrep` do.
+
+**Answer** :
+`zcat` is used to display the contents of a compressed file. `zless` and `zmore` are used to display the contents of a compressed file one page at a time. `zgrep` is used to search for a pattern in a compressed file.
 
 4. (Looping in Bash) What's the output of the following bash script?
 ```{bash}
-#| eval: false
+#| eval: true
 for datafile in ~/mimic/hosp/{a,l,pa}*.gz
 do
   ls -l $datafile
@@ -77,11 +92,47 @@ done
 ```
 Display the number of lines in each data file using a similar loop. (Hint: combine linux commands `zcat <` and `wc -l`.)
 
+**Answer**
+admissions has 431232 lines, labevents has 118171368 lines, and patients has 299713 lines.
+```{bash}
+for datafile in ~/mimic/hosp/{a,l,pa}*.gz
+do
+  zcat < $datafile | wc -l
+done
+```
+
 5. Display the first few lines of `admissions.csv.gz`. How many rows are in this data file? How many unique patients (identified by `subject_id`) are in this data file? Do they match the number of patients listed in the `patients.csv.gz` file? (Hint: combine Linux commands `zcat <`, `head`/`tail`, `awk`, `sort`, `uniq`, `wc`, and so on.)
+
+**Answer**:There are 431232 rows in the `admissions.csv.gz` file. There are 431232 unique patients in the `admissions.csv.gz` file. There are 299713 patients in the `patients.csv.gz` file. It doesn't match the number of patients in the `patients.csv.gz` file.
+```{bash}
+zcat < ~/mimic/hosp/admissions.csv.gz | head -n 5
+zcat < ~/mimic/hosp/admissions.csv.gz | wc -l
+zcat < ~/mimic/hosp/admissions.csv.gz | awk  '{print $1}' | sort -u | wc -l
+zcat < ~/mimic/hosp/patients.csv.gz | wc -l
+```
 
 6. What are the possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `ethnicity`? Also report the count for each unique value of these variables. (Hint: combine Linux commands `zcat`, `head`/`tail`, `awk`, `uniq -c`, `wc`, and so on; skip the header line.)
 
+**Answer**: The possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `ethnicity` are as follows:
+```{bash}
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $9}' | sort | uniq -c
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $10}' | sort | uniq -c
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $11}' | sort | uniq -c
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $12}' | sort | uniq -c
+```
+
 7. _To compress, or not to compress. That's the question._ Let's focus on the big data file `labevents.csv.gz`. Compare compressed gz file size to the uncompressed file size. Compare the run times of `zcat < ~/mimic/labevents.csv.gz | wc -l` versus `wc -l labevents.csv`. Discuss the trade off between storage and speed for big data files. (Hint: `gzip -dk < FILENAME.gz > ./FILENAME`. Remember to delete the large `labevents.csv` file after the exercise.)
+
+**Answer**: The compressed file size is 1.8 GB and the uncompressed file size is 13 GB. Both commands took roughly the same amount of 'real' time, around 13.7 seconds. However, the 'user' and 'system' times were higher for the compressed file, indicating more CPU usage.The trade off between storage and speed for big data files is that compressed files take up less storage space but take longer to process and uncompressed files take up more storage space but take less time to process.
+```{bash}
+ls -lh ~/mimic/hosp/labevents.csv.gz
+gzip -dk < ~/mimic/hosp/labevents.csv.gz > ~/mimic/hosp/labevents.csv
+ls -lh ~/mimic/hosp/labevents.csv
+time zcat < ~/mimic/hosp/labevents.csv.gz | wc -l
+time wc -l ~/mimic/hosp/labevents.csv
+rm ~/mimic/hosp/labevents.csv
+
+```
 
 ## Q4. Who's popular in Price and Prejudice
 
