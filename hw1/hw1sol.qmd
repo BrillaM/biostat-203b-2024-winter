@@ -133,26 +133,35 @@ done
 5.  Display the first few lines of `admissions.csv.gz`. How many rows are in this data file? How many unique patients (identified by `subject_id`) are in this data file? Do they match the number of patients listed in the `patients.csv.gz` file? (Hint: combine Linux commands `zcat <`, `head`/`tail`, `awk`, `sort`, `uniq`, `wc`, and so on.)
 
 **Answer**:There are 431232 rows in the `admissions.csv.gz` file.
-There are 431232 unique patients in the `admissions.csv.gz` file.
+There are 180734 unique patients in the `admissions.csv.gz` file.
 There are 299713 patients in the `patients.csv.gz` file.
 It doesn't match the number of patients in the `patients.csv.gz` file.
 
 ```{bash}
 zcat < ~/mimic/hosp/admissions.csv.gz | head -n 5
 zcat < ~/mimic/hosp/admissions.csv.gz | wc -l
-zcat < ~/mimic/hosp/admissions.csv.gz | awk  '{print $1}' | sort -u | wc -l
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $1}' | sort | uniq | wc -l
 zcat < ~/mimic/hosp/patients.csv.gz | wc -l
 ```
 
+
+
 6.  What are the possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `ethnicity`? Also report the count for each unique value of these variables. (Hint: combine Linux commands `zcat`, `head`/`tail`, `awk`, `uniq -c`, `wc`, and so on; skip the header line.)
 
-**Answer**: The possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `ethnicity` are as follows:
+**Answer**: The possible value for `admission_type` is 9 possibilities.
+The possible value for  `admission_location` is 11 possibilities.
+The possible value for `insurance` is 
+, and the possible value for `ethnicity` is :
+There is 9 unique values for `admission_type` .
+There is 11 unique values for `admission_location` .
+There is 3 unique values for `insurance` .
+There is 33 unique values for `ethnicity` .
 
 ```{bash}
 zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $6}' | sort | uniq -c
 zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $8}' | sort | uniq -c
 zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $10}' | sort | uniq -c
-zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $12}' | sort | uniq -c
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $13}' | sort | uniq -c
 ```
 
 7.  *To compress, or not to compress. That's the question.* Let's focus on the big data file `labevents.csv.gz`. Compare compressed gz file size to the uncompressed file size. Compare the run times of `zcat < ~/mimic/labevents.csv.gz | wc -l` versus `wc -l labevents.csv`. Discuss the trade off between storage and speed for big data files. (Hint: `gzip -dk < FILENAME.gz > ./FILENAME`. Remember to delete the large `labevents.csv` file after the exercise.)
@@ -195,7 +204,7 @@ done
 ```
 
 **Answer**: `wget -nc` downloads the file from the URL if it doesn't already exist in the current directory.
-The following loop tabulates the number of times each of the four characters is mentioned using Linux commands.Elizabeth was mentioned 635 times, Jane was mentioned 293 times, Lydia was mentioned 171 times, and Darcy was mentioned 418 times.
+The following loop tabulates the number of times each of the four characters is mentioned using Linux commands.Elizabeth was mentioned 634 times, Jane was mentioned 293 times, Lydia was mentioned 171 times, and Darcy was mentioned 418 times.
 Elizabeth was mentioned the most.
 
 ```{bash}
@@ -255,6 +264,8 @@ chmod u+x middle.sh
 ## Q5. More fun with Linux
 
 Try following commands in Bash and interpret the results: `cal`, `cal 2024`, `cal 9 1752` (anything unusual?), `date`, `hostname`, `arch`, `uname -a`, `uptime`, `who am i`, `who`, `w`, `id`, `last | head`, `echo {con,pre}{sent,fer}{s,ed}`, `time sleep 5`, `history | tail`.
+
+**answer**: `cal` displays the current month's calendar.
 
 ## Q6. Book
 
