@@ -150,13 +150,8 @@ zcat < ~/mimic/hosp/patients.csv.gz | wc -l
 
 **Answer**: The possible value for `admission_type` is 9 possibilities.
 The possible value for  `admission_location` is 11 possibilities.
-The possible value for `insurance` is 
-, and the possible value for `ethnicity` is :
-There is 9 unique values for `admission_type` .
-There is 11 unique values for `admission_location` .
-There is 3 unique values for `insurance` .
-There is 33 unique values for `ethnicity` .
-
+The possible value for `insurance` is 3 possibilities 
+, and the possible value for `ethnicity` is 33 possibilities.
 ```{bash}
 zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $6}' | sort | uniq -c
 zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $8}' | sort | uniq -c
@@ -265,8 +260,10 @@ chmod u+x middle.sh
 
 Try following commands in Bash and interpret the results: `cal`, `cal 2024`, `cal 9 1752` (anything unusual?), `date`, `hostname`, `arch`, `uname -a`, `uptime`, `who am i`, `who`, `w`, `id`, `last | head`, `echo {con,pre}{sent,fer}{s,ed}`, `time sleep 5`, `history | tail`.
 
-**answer**: `cal` displays the current month's calendar.
-
+**answer**:`cal 2024` displays the calendar for the year 2024.
+```{bash}
+cal 2024
+```
 ## Q6. Book
 
 1.  Git clone the repository <https://github.com/christophergandrud/Rep-Res-Book> for the book *Reproducible Research with R and RStudio* to your local machine.
