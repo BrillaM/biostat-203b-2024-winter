@@ -1,7 +1,7 @@
 ---
 title: "Biostat 203B Homework 2"
 subtitle: Due Feb 9 @ 11:59PM
-author: "Your NAME and UID"
+author: Brilla Meng, UID:806329681
 format:
   html:
     theme: cosmo
@@ -134,6 +134,7 @@ zcat < ~/mimic/hosp/labevents.csv.gz | head -10
 Try to ingest `labevents.csv.gz` using `read_csv`. What happens? If it takes more than 5 minutes on your computer, then abort the program and report your findings. 
 
 ```{r}
+#| eval: False
 read_csv("~/mimic/hosp/labevents.csv.gz")
 ```
 **answer**: It spends more than 5 minutes to read the file. It is not a good idea to use `read_csv` to read this file.
@@ -236,7 +237,6 @@ time_taken <- system.time({
   print(time_taken)
   nrow(labevents)
   head(labevents, 10)
-
 ```
 **answer**: The Parquet file `labevents_filtered.parquet` is 96. It takes 0.295 seconds for the system.time to ingest `labevents_filtered.parquet` by Apache Arrow. There are 24855909 rows in the result tibble. The first 10 rows of the result tibble match those in Q2.3.
 
@@ -271,11 +271,11 @@ time_taken <- system.time({
 print(time_taken)
 nrow(labevents_duckdb)
 head(labevents_duckdb, 10)
-
 ```
+**answer**: It takes 1.686 seconds for the system.time to ingest `labevents_filtered.parquet` by Apache Arrow. There are 24855909 rows in the result tibble. The first 10 rows of the result tibble match those in Q2.3.
+
 Write a few sentences to explain what is DuckDB. Imagine you want to explain it to a layman in an elevator.
 **answer**: DuckDB is an embeddable SQL OLAP database management system. It is designed to be used as an embedded database, which means it can be easily integrated into other software applications. It is optimized for analytical queries, and it is designed to be fast and efficient for complex queries on large datasets. It is also designed to be easy to use, with a simple and intuitive SQL interface.
-
 
 ## Q3. Ingest and filter `chartevents.csv.gz`
 
@@ -298,11 +298,12 @@ gzip -d -c  ~/mimic/icu/chartevents.csv.gz > chartevents.csv
 ```
 ```{r}
 chartevents <- arrow::open_dataset("chartevents.csv", format = "csv") %>% 
-dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+dplyr::select(subject_id, itemid, charttime, valuenum) %>% 
 dplyr::filter(itemid %in% c(220045, 220181, 220179, 223761, 220210)) %>%
 collect()
+nrow(chartevents)
 head(chartevents, 10)
 ```
-```{bash}
-rm ~/mimic/hosp/labevents.csv
-```
+**answer**:  There are 22502319 rows in the result tibble. The first 10 rows of the result tibble are shown.
+
+
