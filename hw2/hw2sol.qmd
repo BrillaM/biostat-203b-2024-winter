@@ -220,37 +220,26 @@ Write a few sentences to explain what is Apache Arrow. Imagine you want to expla
 Re-write the csv file `labevents.csv` in the binary Parquet format (Hint: [`arrow::write_dataset`](https://arrow.apache.org/docs/r/reference/write_dataset.html).) How large is the Parquet file(s)? How long does the ingest+select+filter process of the Parquet file(s) take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
 ```{r}
-labevents <- read_csv_arrow("labevents.csv")
 labevents %>%
   arrow::write_dataset(format = "parquet", path = "labevents_filtered.parquet")
-
-
-labevents %>%
-   arrow::write_dataset(format = "parquet", path = "labevents_filtered.parquet")%>%
+  arrow::open_dataset("labevents_filtered.parquet",format ="parquet") %>%
   dplyr::select(subject_id, itemid, charttime, valuenum) %>%
-    dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+  dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
   collect()
-file.size("labevents_filtered.parquet")
-
-
+  file.size("labevents_filtered.parquet")
 time_taken <- system.time({
-  labevents %>%
-    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
-    dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
-    arrow::write_dataset(format = "parquet", path = "labevents_filtered.parquet")
-print(time_taken)
-
-
+    labevents <- arrow::open_dataset("labevents_filtered.parquet", format = "parquet") %>%
+      dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+      dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+      collect()
+  })
+  print(time_taken)
+  nrow(labevents)
+  head(labevents, 10)
 
 ```
+**answer**: The Parquet file `labevents_filtered.parquet` is 96. It takes 0.295 seconds for the system.time to ingest `labevents_filtered.parquet` by Apache Arrow. There are 24855909 rows in the result tibble. The first 10 rows of the result tibble match those in Q2.3.
 
-
-
-
-
-```{bash}
-rm ~/mimic/hosp/labevents.csv
-```
 
 Write a few sentences to explain what is the Parquet format. Imagine you want to explain it to a layman in an elevator.
 **answer**: Parquet is a columnar storage file format that is optimized for reading and writing large datasets. It is designed to be efficient for both compression and encoding, and it is especially good for complex data types. It is also designed to be used in a wide range of applications, from small scripts to large-scale distributed systems.
@@ -265,10 +254,23 @@ Write a few sentences to explain what is the Parquet format. Imagine you want to
 Ingest the Parquet file, convert it to a DuckDB table by [`arrow::to_duckdb`](https://arrow.apache.org/docs/r/reference/to_duckdb.html), select columns, and filter rows as in Q2.5. How long does the ingest+convert+select+filter process take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
 ```{r}
-labevents_parquet <- arrow::open_dataset("labevents.csv", format = "csv") %>% 
-  dplyr::select(subject_id, itemid, charttime, valuenum) %>% 
-  dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
-  arrow::to_duckdb("labevents_duckdb")
+labevents_duckdb <- arrow::open_dataset("labevents_filtered.parquet", format = "parquet") %>%
+    arrow::to_duckdb() %>% # Ensure to reference arrow explicitly
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+    dplyr::arrange(subject_id, charttime) %>%
+    collect()
+time_taken <- system.time({
+    labevents_duckdb <- arrow::open_dataset("labevents_filtered.parquet", format = "parquet") %>%
+    arrow::to_duckdb() %>% # Ensure to reference arrow explicitly
+    dplyr::select(subject_id, itemid, charttime, valuenum) %>%
+    dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) %>%
+    dplyr::arrange(subject_id, charttime) %>%
+    collect()
+  })
+print(time_taken)
+nrow(labevents_duckdb)
+head(labevents_duckdb, 10)
 
 ```
 Write a few sentences to explain what is DuckDB. Imagine you want to explain it to a layman in an elevator.
