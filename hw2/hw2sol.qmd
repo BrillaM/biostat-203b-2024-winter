@@ -66,15 +66,15 @@ Which function is fastest? Is there difference in the (default) parsed data type
 **answer:**
 
 ```{r}
-read.csv(("~/mimic/hosp/admissions.csv.gz"), header = TRUE)
+#read.csv(("~/mimic/hosp/admissions.csv.gz"), header = TRUE)
 ```
 
 ```{r}
-read_csv("~/mimic/hosp/admissions.csv.gz")
+#read_csv("~/mimic/hosp/admissions.csv.gz")
 ```
 
 ```{r}
-fread("~/mimic/hosp/admissions.csv.gz")
+#fread("~/mimic/hosp/admissions.csv.gz")
 ```
 
 ```{r}
@@ -87,7 +87,7 @@ pryr::object_size(read.csv("~/mimic/hosp/admissions.csv.gz"))
 pryr::object_size(read_csv("~/mimic/hosp/admissions.csv.gz"))
 pryr::object_size(fread("~/mimic/hosp/admissions.csv.gz"))
 ```
-**answer**: `fread()` is the fastest, taking 0.420 seconds and uses the least memory at 50.13 MB. The other two functions, read.csv() and read_csv(), are slower and consume more memory, with no differences in default data types parsed.
+**answer**: `fread()` is the fastest, taking 0.046 seconds and uses the least memory at 50.13 MB. The other two functions, read.csv() and read_csv(), are slower and consume more memory, with no differences in default data types parsed.
 
 
 ### Q1.2 User-supplied data types
@@ -173,7 +173,7 @@ zcat < labevents_filtered.csv.gz | wc -l
 ```{r}
 system.time(read_csv("labevents_filtered.csv.gz"))
 ```
-**answer**: The first 10 lines of the new file `labevents_filtered.csv.gz` are displayed. There are 2889731 lines in this new file. The system run time is 0.180 seconds.
+**answer**: The first 10 lines of the new file `labevents_filtered.csv.gz` are displayed. There are 2889731 lines in this new file. The system run time is 0.204 seconds.
 
 
 ### Q2.4 Ingest `labevents.csv` by Apache Arrow
@@ -305,5 +305,3 @@ nrow(chartevents)
 head(chartevents, 10)
 ```
 **answer**:  There are 22502319 rows in the result tibble. The first 10 rows of the result tibble are shown.
-
-
