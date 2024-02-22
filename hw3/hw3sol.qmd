@@ -1,8 +1,7 @@
-````         
 ---
 title: "Biostat 203B Homework 3"
 subtitle: "Due Feb 23 @ 11:59PM"
-author: "Your Name and UID"
+author: Brilla Meng, UID:806329681
 format:
   html:
     theme: cosmo
@@ -13,7 +12,7 @@ format:
     toc-location: left
     code-fold: false
 execute:
-  eval: false    
+  eval: true    
 ---
 
 Display machine information for reproducibility:
@@ -48,6 +47,102 @@ A patient's ADT history records the time of admission, discharge, and transfer i
 ![](10001217_adt.png)
 Do a similar visualization for the patient with `subject_id` 10013310 using ggplot.
 
+```{r}
+sid <- 10001217
+transfers_tbl <- read_csv("~/mimic/hosp/transfers.csv.gz") |>
+  filter(subject_id == sid) |>
+  print(width = Inf)
+
+patients_tbl <- read_csv("~/mimic/hosp/patients.csv.gz") |>
+  filter(subject_id == sid) |>
+  print(width = Inf)
+
+admissions_tbl <- read_csv("~/mimic/hosp/admissions.csv.gz") |>
+  filter(subject_id == sid) |>
+  print(width = Inf)
+
+labevents_tbl <- arrow::open_dataset("~/203bhw/hw2/labevents.parquet") |> 
+  as_tibble() |>
+  filter(subject_id == sid) |>
+  print(width = Inf)
+
+procedures_icd_tbl <- read_csv("~/mimic/hosp/procedures_icd.csv.gz") |>
+  filter(subject_id == sid) |>
+  print(width = Inf)
+
+procedures_icd_tbl$seq_num <- as.factor(procedures_icd_tbl$seq_num)
+procedures_icd_tbl$icd_code <- factor(procedures_icd_tbl$icd_code, levels = c('3','1','2'))
+levels(procedures_icd_tbl$seq_num) <- c("Central venous catheter p", "Other incision of brain", "Spinal tap")
+procedures_icd_tbl$chartdate <- as.POSIXct(procedures_icd_tbl$chartdate)
+
+```
+
+```{r transfers_tbl}
+sid_adt <- transfers_tbl |>
+  mutate(
+    intime = as.POSIXct(intime),
+    outtime = as.POSIXct(outtime)
+  ) |>
+  select(
+    intime,
+    outtime,
+    careunit
+  ) |>
+  print(width = Inf)
+```
+```{r patients_tbl}
+sid_adt <- patients_tbl |>
+  select(
+    gender,
+    anchor_age
+  ) |>
+  print(width = Inf)
+```
+```{r admissions_tbl}
+sid_adt <- admissions_tbl |>
+  select(
+    race
+  ) |>
+  print(width = Inf)
+```
+```{r labevents_tbl}
+sid_adt <- labevents_tbl |>
+  select(
+    charttime
+  ) |>
+  print(width = Inf)
+```
+```{r procedures_icd_tbl}
+
+```
+```{r diagnoses_icd_tbl}
+
+```
+```{r d_icd_procedures_tbl}
+
+```
+```{r d_icd_diagnoses_tbl}
+
+```
+
+
+```{r}
+sid_adt %>%
+  ggplot()+
+  geom_segment(aes(
+    x = intime,
+    xend = outtime,
+    y = "ADT",
+    yend = "ADT",
+    color = careunit,
+    linewidth = str_detect(careunit, "(ICU/CCU)" ))) +
+    labs(
+    x = "",
+    y = "",
+    title = str_c("Patient", sid))
+```
+
+
 Hint: We need to pull information from data files `patients.csv.gz`, `admissions.csv.gz`, `transfers.csv.gz`, `labevents.csv.gz`, `procedures_icd.csv.gz`, `diagnoses_icd.csv.gz`, `d_icd_procedures.csv.gz`, and `d_icd_diagnoses.csv.gz`. For the big file `labevents.csv.gz`, use the Parquet format you generated in Homework 2. For reproducibility, make the Parquet folder `labevents_pq` available at the current working directory `hw3`, for example, by a symbolic link. Make your code reproducible.
 
 ### Q1.2 ICU stays
@@ -68,11 +163,29 @@ zcat < ~/mimic/icu/icustays.csv.gz | head
 ### Q2.1 Ingestion
 
 Import `icustays.csv.gz` as a tibble `icustays_tble`. 
+**answer:**
+```{r}
+icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz") |> print(width = Inf)
+```
 
 ### Q2.2 Summary and visualization
 
 How many unique `subject_id`? Can a `subject_id` have multiple ICU stays? Summarize the number of ICU stays per `subject_id` by graphs. 
+```{r}
+length(unique(icustays_tble$subject_id))
+```
+```{r}
+icustays_tble %>%
+  count(subject_id) %>%
+  ggplot() +
+  geom_bar(aes(x = subject_id,y ) +
+  labs(
+    x = "Number of ICU stays",
+    y = "Number of patients",
+    title = "Number of ICU stays per patient"
+  )
 
+```
 ## Q3. `admissions` data
 
 Information of the patients admitted into hospital is available in `admissions.csv.gz`. See <https://mimic.mit.edu/docs/iv/modules/hosp/admissions/> for details of each field in this file. The first 10 lines are
@@ -83,6 +196,10 @@ zcat < ~/mimic/hosp/admissions.csv.gz | head
 ### Q3.1 Ingestion
 
 Import `admissions.csv.gz` as a tibble `admissions_tble`.
+**answer:**
+```{r}
+admissions_tble <- read_csv("~/mimic/hosp/admissions.csv.gz") |> print(width = Inf)
+```
 
 ### Q3.2 Summary and visualization
 
@@ -174,4 +291,4 @@ Summarize the following information about the ICU stay cohort `mimic_icu_cohort`
 - Length of ICU stay `los` vs the average vital measurements within the first hour of ICU stay
 
 - Length of ICU stay `los` vs first ICU unit
-````
+
