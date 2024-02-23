@@ -84,7 +84,7 @@ sid_adt <- transfers_tbl |>
     outtime = as.POSIXct(outtime)
   ) |>
   select(
-    intime,
+    intime, 
     outtime,
     careunit
   ) |>
@@ -175,17 +175,15 @@ How many unique `subject_id`? Can a `subject_id` have multiple ICU stays? Summar
 length(unique(icustays_tble$subject_id))
 ```
 ```{r}
-icustays_tble %>%
-  count(subject_id) %>%
-  ggplot() +
-  geom_bar(aes(x = subject_id,y ) +
-  labs(
-    x = "Number of ICU stays",
-    y = "Number of patients",
-    title = "Number of ICU stays per patient"
-  )
-
+icu_stays_per_subject <- aggregate(icustays_tble$subject_id, by=list(icustays_tble$subject_id), FUN=length)
+names(icu_stays_per_subject) <- c("subject_id", "icu_stays_count")
+ggplot(icu_stays_per_subject, aes(x=icu_stays_count)) +
+  geom_histogram(binwidth = 1, fill="blue", color="black") +
+  labs(title="Number of ICU Stays per Subject ID", x="ICU Stays", y="Frequency") +
+  theme_minimal()
 ```
+**answer:** There are 50920 unique `subject_id`. A `subject_id` can have multiple ICU stays. The histogram shows the number of ICU stays per `subject_id`. Most `subject_id` have 1 ICU stay.
+
 ## Q3. `admissions` data
 
 Information of the patients admitted into hospital is available in `admissions.csv.gz`. See <https://mimic.mit.edu/docs/iv/modules/hosp/admissions/> for details of each field in this file. The first 10 lines are
@@ -210,6 +208,49 @@ Summarize the following information by graphics and explain any patterns you see
 - admission minute (anything unusual?)  
 - length of hospital stay (from admission to discharge) (anything unusual?)  
 
+```{r}
+admissions_per_patient <- admissions_tble |> 
+  group_by(subject_id) |> 
+  summarize(admissions_count = n()) |> 
+  print(width = Inf)
+```
+```{r}
+ggplot(admissions_per_patient, aes(x=admissions_count)) +
+  geom_histogram(binwidth = 1, fill="blue", color="black") +
+  labs(title="Number of Admissions per Patient", x="Admissions", y="Frequency") +
+  theme_minimal()
+```
+**answer:** Most patients have 1 admission. Some patients have 2 admissions. A few patients have 3 admissions. 
+
+```{r}
+admissions_tble |> 
+  ggplot() +
+  geom_histogram(aes(x=hour(admittime)), binwidth=1, fill="blue", color="black") +
+  labs(title="Admission Hour", x="Hour", y="Frequency") +
+  theme_minimal()
+```
+**answer:** Most admissions occur at 00:00. During 16:00 to 24:00, there is also a lot of admissions. 7:00 to 8:00 has the a lot of admissions, that's very unusual, because the admission from 1:00 to 13:00 are very low except 7:00 to 8:00. 
+
+```{r}
+admissions_tble |> 
+  ggplot() +
+  geom_histogram(aes(x=minute(admittime)), binwidth=1, fill="blue", color="black") +
+  labs(title="Admission Minute", x="Minute", y="Frequency") +
+  theme_minimal()
+```
+**answer:** Most admissions occur at 00 minute. The next most frequent admission minute is 15, then is 30 mins, and 45 mins. All other minutes are very low. 
+
+```{r}
+admissions_tble |> 
+  mutate(length_of_stay = as.numeric(difftime(dischtime, admittime, units="hours"))) |> 
+  ggplot() +
+  geom_histogram(aes(x=length_of_stay), binwidth=1, fill="blue", color="black") +
+  labs(title="Length of Hospital Stay", x="Hours", y="Frequency") +
+  theme_minimal()
+
+```
+**answer:** Most patients stay in hospital for 0 hour, then with the hours increase, the frequency decrease.
+
 According to the [MIMIC-IV documentation](https://mimic.mit.edu/docs/iv/about/concepts/#date-shifting), 
 
 > All dates in the database have been shifted to protect patient confidentiality. Dates will be internally consistent for the same patient, but randomly distributed in the future. Dates of birth which occur in the present time are not true dates of birth. Furthermore, dates of birth which occur before the year 1900 occur if the patient is older than 89. In these cases, the patient’s age at their first admission has been fixed to 300.
@@ -224,10 +265,20 @@ zcat < ~/mimic/hosp/patients.csv.gz | head
 ### Q4.1 Ingestion
 
 Import `patients.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/hosp/patients/>) as a tibble `patients_tble`.
+```{r}
+patients_tble <- read_csv("~/mimic/hosp/patients.csv.gz") |> print(width = Inf)
+```
 
 ### Q4.2 Summary and visualization
 
 Summarize variables `gender` and `anchor_age` by graphics, and explain any patterns you see.
+```{r}
+ggplot(patients_tble, aes(x=gender, y=anchor_age)) +
+  geom_violin(fill="orange", color="black") +
+  labs(title="Distribution of Anchor Age by Gender", x="Gender", y="Anchor Age") +
+  theme_minimal()
+```
+**answer:** Male has more older anchor age than Female. 
 
 ## Q5. Lab results
 
@@ -245,6 +296,14 @@ We are interested in the lab measurements of creatinine (50912), potassium (5097
 
 ![](labevents_tble.png)
 
+```{r}
+labevents_tble <- labevents_tble |> 
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) |> 
+  group_by(subject_id, hadm_id, icustay_id, itemid) |> 
+  summarize(last_measurement = max(storetime)) |> 
+  pivot_wider(names_from = itemid, values_from = last_measurement) |> 
+  print(width = Inf)
+```
 
 Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `labevents_pq` folder available at the current working directory `hw3`, for example, by a symbolic link.
 
