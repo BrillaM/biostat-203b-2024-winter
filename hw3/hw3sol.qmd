@@ -500,18 +500,72 @@ ggplot(average_los_per_age_at_intime, aes(x = age_at_intime, y = average_los, fi
 ```
 
 - Length of ICU stay `los` vs the last available lab measurements before ICU stay
-```{r}
-
-```
-
-```{r}
-
-```
 - Length of ICU stay `los` vs the average vital measurements within the first hour of ICU stay
 ```{r}
-
+ggplot(mimic_icu_cohort, aes(x = Bicarbonate, y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Bicarbonate", x = "Bicarbonate", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
 ```
-
+```{r}
+ggplot(mimic_icu_cohort, aes(x = Chloride, y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Chloride", x = "Chloride", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
+```{r}
+ggplot(mimic_icu_cohort, aes(x = Creatinine, y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Creatinine", x = "Creatinine", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
+```{r}
+ggplot(mimic_icu_cohort, aes(x = Glucose, y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Glucose", x = "Glucose", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
+```{r}
+ggplot(mimic_icu_cohort, aes(x = Potassium, y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Potassium", x = "Potassium", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
+```{r}
+ggplot(mimic_icu_cohort, aes(x = Sodium, y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Sodium", x = "Sodium", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
+```{r}
+ggplot(mimic_icu_cohort, aes(x = Hematocrit, y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Hematocrit", x = "Hematocrit", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
+```{r}
+ggplot(mimic_icu_cohort, aes(x = mimic_icu_cohort$'White Blood Cells', y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs White Blood Cells", 
+       x = "White Blood Cells", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
+```{r}
+ggplot(mimic_icu_cohort, aes(x = mimic_icu_cohort$'Heart Rate', y = los)) +
+  geom_point ()+
+  labs(title = "Length of ICU Stay vs Heart Rate", 
+       x = "Heart Rate", 
+       y = "Length of Stay (LOS)")
+  theme_minimal()
+```
 - Length of ICU stay `los` vs first ICU unit
 
 ```{r}
