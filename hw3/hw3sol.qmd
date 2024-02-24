@@ -100,15 +100,12 @@ sid_proc_final <- inner_join(sid_proc,sid_dproc,
 sid_proc_final$seq_num <- as_factor(sid_proc_final$seq_num) 
 sid_proc_final$chartdate <- as.POSIXct(sid_proc_final$chartdate)
 ```
-```{r}
-main_title <- paste("Patient", sid,",", sid_pat$gender[1], ",", sid_pat$anchor_age[1], "years old,", sid_adm$race[1])
-sub_title <- paste0(sid_$long_title[1],"\n",diagnoses_sub$long_title[2],"\n",diagnoses_sub$long_title[3])
-```
+
 ```{r}
 sid_adt %>%
   filter(eventtype != "discharge") %>%
   ggplot() +
-  geom_point(data = sid_Proc_final, aes(x = chartdate,
+  geom_point(data = sid_proc_final, aes(x = chartdate,
                                   y = "Procedure",
                                   shape = long_title)) +
   geom_point(data = sid_lab, aes(x = charttime,
@@ -127,77 +124,20 @@ y = "Lab"),
                 y="",
                 color = "Care Unit",
                 shape = "Procedure",
-                title = str_c("Patient ",sid, ", ",sid_patient$gender, ", ",sid_patient$anchor_age)),
-                subtitle = "Acute on chronic systolic (congestive) heart failure
-)+
+   title = str_c("Patient ",sid, ", ",sid_pat$gender, ", ",sid_pat$anchor_age, 
+                              " years old",",",sid_adm$race),
+  subtitle = str_c("Acute on chronic systolic (congestive) heart failure", "\n", 
+                   "Hyperlipidemia, unspecified", "\n",
+                   "Long term (current) use of insulin", "\n",
+                   "Other chronic pain")
+  ) +
 scale_y_discrete(limits = c("Procedure","Lab","ADT"))
 ```
 
 
 Hint: We need to pull information from data files `patients.csv.gz`, `admissions.csv.gz`, `transfers.csv.gz`, `labevents.csv.gz`, `procedures_icd.csv.gz`, `diagnoses_icd.csv.gz`, `d_icd_procedures.csv.gz`, and `d_icd_diagnoses.csv.gz`. For the big file `labevents.csv.gz`, use the Parquet format you generated in Homework 2. For reproducibility, make the Parquet folder `labevents_pq` available at the current working directory `hw3`, for example, by a symbolic link. Make your code reproducible.
 
-```{r}
-patients_tble <- read_csv("~/mimic/hosp/patients.csv.gz")
-admissions_tble <- read_csv("~/mimic/hosp/admissions.csv.gz")
-transfers_tble <- read_csv("~/mimic/hosp/transfers.csv.gz")
-lab_pq5 <- arrow::open_dataset("~/203bhw/hw2/labevents.parquet", format = "parquet") |> collect()
-procedures_tble <- read_csv("~/mimic/hosp/procedures_icd.csv.gz")
-diagnoses_tble <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz")
-d_icd_procedures_tble <- read_csv("~/mimic/hosp/d_icd_procedures.csv.gz")
-d_icd_diagnoses_tble <- read_csv("~/mimic/hosp/d_icd_diagnoses.csv.gz")
-```
 
-```{r}
-patient_id <- 10013310
-patients_sub <- patients_tble %>%
-  filter(subject_id == patient_id) %>%
-  select(subject_id, gender, anchor_age)
-
-admissions_sub <- admissions_tble %>%
-  filter(subject_id == patient_id) %>%
-  select(subject_id, race, admittime, dischtime)
-
-transfers_sub <- transfers_tble %>%
-  filter(subject_id == patient_id) %>%
-  select(subject_id, careunit, intime, outtime)
-
-labevents_sub <- lab_pq5  %>%
-  filter(subject_id == patient_id) %>%
-  select(subject_id, charttime, storetime)
-
-procedures_sub <- procedures_tble %>%
-  filter(subject_id == patient_id) %>%
-  select(subject_id, chartdate, icd_code, icd_version) %>%
-  left_join(d_icd_procedures_tble, by = c("icd_code", "icd_version")) %>%
-  select(subject_id, chartdate, long_title)
-
-diagnoses_sub <- diagnoses_tble %>%
-  filter(subject_id == patient_id) %>%
-  select(subject_id,icd_code, icd_version) %>%
-  left_join(d_icd_diagnoses_tble, by = c("icd_code", "icd_version")) %>%
-  select(subject_id, long_title)
-patients_inf <-patients_sub  %>%
-  left_join(admissions_sub, by = "subject_id") 
-patients_inf$race <- tolower(patients_inf$race)
-
-main_title <- paste("Patient", patient_id,",", patients_inf$gender[1], ",", patients_inf$anchor_age[1], "years old,", patients_inf$race[1])
-sub_title <- paste0(diagnoses_sub$long_title[1],"\n",diagnoses_sub$long_title[2],"\n",diagnoses_sub$long_title[3])
-ggplot() +
-  geom_point(data = procedures_sub, aes(x = as.POSIXct(chartdate), y = "Procedure",
-                                     shape = factor(long_title))) +
-  geom_point(data = labevents_sub, aes(x = charttime, y = "Lab"),shape = 3) +
-  geom_segment(data = transfers_sub, aes(x = intime, xend = outtime,
-                           y = "ADT", yend = "ADT",
-                           color = careunit,
-                           linewidth = str_detect(careunit, "(ICU|CCU)"))) +
-  guides(linewidth = "none", shape = guide_legend(nrow = 10)) +
-  theme_bw(base_size = 10) +
-  theme(legend.position = "bottom", legend.box = "vertical",
-        legend.title = element_text(size=9)) +
-  labs(x = "Calender Time", y="", title = main_title,
-       subtitle = sub_title,
-       color = "Care Unit", shape = "procedure")
-```
 ### Q1.2 ICU stays
 
 ICU stays are a subset of ADT history. This figure shows the vitals of the patient `10001217` during ICU stays. The x-axis is the calendar time, and the y-axis is the value of the vital. The color of the line represents the type of vital. The facet grid shows the abbreviation of the vital and the stay ID.
@@ -509,18 +449,74 @@ Summarize the following information about the ICU stay cohort `mimic_icu_cohort`
 
 - Length of ICU stay `los` vs demographic variables (race, insurance, marital_status, gender, age at intime)
 ```{r}
-ggplot(mimic_icu_cohort, aex = age_at_intime, y = los))+
-  geom_point(alpha = 0.5)+
-  labs()
+average_los_per_race <- mimic_icu_cohort %>%
+  group_by(race) %>%
+  summarise(average_los = mean(los, na.rm = TRUE))
+ggplot(average_los_per_race, aes(x = race, y = average_los, fill = race)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "race", y = "Average Length of Stay (LOS)", title = "Average LOS vs race") +
+  theme_minimal() 
+```
 
+```{r}
+average_los_per_insurance <- mimic_icu_cohort %>%
+  group_by(insurance) %>%
+  summarise(average_los = mean(los, na.rm = TRUE))
+ggplot(average_los_per_insurance, aes(x = insurance, y = average_los, fill = insurance)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "insurance", y = "Average Length of Stay (LOS)", title = "Average LOS vs insurance") +
+  theme_minimal() 
+```
+
+```{r}
+average_los_per_marital_status <- mimic_icu_cohort %>%
+  group_by(marital_status) %>%
+  summarise(average_los = mean(los, na.rm = TRUE))
+ggplot(average_los_per_marital_status, aes(x = marital_status, y = average_los, fill = marital_status)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "marital_status", y = "Average Length of Stay (LOS)", title = "Average LOS vs marital_status") +
+  theme_minimal() 
+```
+
+```{r}
+average_los_per_gender <- mimic_icu_cohort %>%
+  group_by(gender) %>%
+  summarise(average_los = mean(los, na.rm = TRUE))
+ggplot(average_los_per_gender, aes(x = gender, y = average_los, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Gender", y = "Average Length of Stay (LOS)", title = "Average LOS vs gender") +
+  theme_minimal()
+```
+
+```{r}
+average_los_per_age_at_intime <- mimic_icu_cohort %>%
+  group_by(age_at_intime) %>%
+  summarise(average_los = mean(los, na.rm = TRUE))
+ggplot(average_los_per_age_at_intime, aes(x = age_at_intime, y = average_los, fill = age_at_intime)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "age_at_intime", y = "Average Length of Stay (LOS)", title = "Average LOS vs age_at_intime") +
+  theme_minimal() 
 
 ```
 
-
-
 - Length of ICU stay `los` vs the last available lab measurements before ICU stay
+```{r}
 
+```
+
+```{r}
+
+```
 - Length of ICU stay `los` vs the average vital measurements within the first hour of ICU stay
+```{r}
+
+```
 
 - Length of ICU stay `los` vs first ICU unit
 
+```{r}
+ggplot(mimic_icu_cohort, aes(x = first_careunit, y = los, fill = first_careunit)) +
+  geom_boxplot() +  # Change this line to create boxplots
+  labs(x = "First Care Unit", y = "Length of ICU stay (LOS)", title = "LOS vs First Care Unit") +
+  theme_minimal()
+```
