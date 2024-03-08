@@ -175,6 +175,32 @@ Perform the following preprocessing steps. (i) Lump infrequent levels into "Othe
 ```{r}
 # # TODO
 library(forcats)
+library(dplyr)
+library(forcats)
+library(gtsummary)
+
+# Assuming `df` is your dataframe
+
+# Step (i)
+columns_to_lump <- c("first_careunit", "last_careunit", "admission_type", "admission_location", "discharge_location")
+
+df <- df %>%
+  mutate(across(all_of(columns_to_lump), ~fct_lump(f = ., prop = 0.05), .names = "{.col}_lumped"))
+
+# Step (ii)
+df$race <- fct_collapse(df$race,
+  ASIAN = "ASIAN",
+  BLACK = "BLACK",
+  HISPANIC = "HISPANIC",
+  WHITE = "WHITE",
+  Other = c("Other", "UNKNOWN", "MULTIRACIAL")) # Adjust as necessary based on your actual 'race' categories
+
+# Step (iii)
+df$los_long <- df$los >= 2
+
+# Step (iv)
+summary_table <- tbl_summary(df, by = los_long)
+
     
 ```
 
@@ -218,7 +244,9 @@ library(arrow)
 
 ```
 
+
 ```{r}
+
 ui <- fluidPage(
   # Application title
   titlePanel("Patient Data Dashboard"),
@@ -232,24 +260,25 @@ ui <- fluidPage(
     
     # Main panel for displaying outputs
     mainPanel(
-      tabsetPanel(
-        # First tab: Patient Characteristics
-        tabPanel("Patient Characteristics", 
-                 selectInput("variable", "Variable of interest",
-                             choices = c("Last care unit", 
-                                         "Lab Events", 
-                                         "Other Variable 1", 
-                                         "Other Variable 2")),
-                 checkboxInput("removeOutliers", 
-                              "Remove outliers in IQR method for measurements?",
+    tabsetPanel(
+  # First tab: Patient Characteristics
+    tabPanel("Patient Characteristics", 
+    selectInput("variable", "Variable of interest",
+    choices = c("Last care unit", 
+     "Lab Events"
+      )),
+  checkboxInput("removeOutliers", 
+  "Remove outliers in IQR method for measurements?",
                                value = FALSE)
                 ),
         
-        # Second tab: Patient's ADT and ICU Stay Information
-        tabPanel("Patient's ADT and ICU Stay Information",
-                 # Contents for Patient's ADT and ICU Stay Information
-                 # Similarly, add UI elements relevant to this tab
-                 textOutput("adtIcuInformation"))
+     # Second tab: Patient's ADT and ICU Stay Information
+   tabPanel("Patient's ADT and ICU Stay Information",
+      # Contents for Patient's ADT and ICU Stay Information
+     # Similarly, add UI elements relevant to this tab
+     
+   textOutput("adtIcuInformation"))
+        
       )
     )
   )
@@ -258,10 +287,14 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output) {
   # Dummy outputs, replace with your actual data processing and output generation
+  
+  
   output$patientCharacteristics <- renderText("Patient characteristics data goes here.")
   output$adtIcuInformation <- renderText("Patient's ADT and ICU stay information goes here.")
 }
 
-# Run the application 
+# Run the application
 shinyApp(ui = ui, server = server)
 ```
+
+
