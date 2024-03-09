@@ -183,9 +183,15 @@ library(gtsummary)
 
 mimic_icu_cohort <- mimic_icu_cohort |>
   mutate(
-    first_careunit = fct_lump( first_careunit, n= 4, other_level  = "Other"),
-    last_careunit = fct_lump(last_careunit, n =4, other_level = "Other"),
-    admission_type = fct_lump(admission_type, n =4, other_level = "Other"),
+    first_careunit = fct_lump(first_careunit,
+                              n= 4, 
+                              other_level  = "Other"),
+    last_careunit = fct_lump(last_careunit, 
+                             n =4, 
+                             other_level = "Other"),
+    admission_type = fct_lump(admission_type, 
+                              n =4, 
+                              other_level = "Other"),
     admission_location = fct_lump(admission_location , n =4,
                                    other_level = "other "),
     discharge_location = fct_lump(diccharge_location, n =4,
@@ -195,9 +201,12 @@ mimic_icu_cohort <- mimic_icu_cohort |>
 mimic_icu_cohort$race <- 
   fct_collapse(mimic_icu_cohort$race,
 ASIAN =  c("ASIAN",
-          "ASIAN - ASIAN INDIAN", "ASTAN - CHINESE",
-          "ASIAN - KOREAN", "ASIAN - SOUTH EAST ASIAN"),
-BLACK = c("BLACK/AFRICAN", "BLACK/AFRICAN AMERICAN", 
+          "ASIAN - ASIAN INDIAN",
+          "ASTAN - CHINESE",
+          "ASIAN - KOREAN", 
+          "ASIAN - SOUTH EAST ASIAN"),
+BLACK = c("BLACK/AFRICAN", 
+          "BLACK/AFRICAN AMERICAN", 
          "BLACK/CAPE VERDEAN",
          "BLACK/CARIBBEAN ISLAND"),
 HISPANIC = c("HISPANIC OR LATINO",
@@ -223,6 +232,7 @@ OTHER = c("AMERICAN INDIAN/ALASKA NATIVE",
           "UNABLE TO OBTAIN",
           "UNKNOWN")
 )
+
 mimic_icu_cohort <- mimic_icu_cohort |>
   mumate (los_long = los >= 2)
 
