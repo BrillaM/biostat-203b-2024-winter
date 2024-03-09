@@ -32,6 +32,7 @@ library(DBI)
 library(gt)
 library(gtsummary)
 library(tidyverse)
+library(forcats)
 ```
 
 ## Q1. Compile the ICU cohort in HW3 from the Google BigQuery database 
@@ -98,7 +99,6 @@ Connect to the `labevents` table and retrieve a subset that only contain subject
 ```{r}
 # # TODO
 d_labitems <- tbl(con_bq, "d_labitems")
-
 labevents_tble <- tbl(con_bq, "labevents") |>
   select(subject_id, itemid, valuenum, storetime) |>
   filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) |>
@@ -118,15 +118,12 @@ labevents_tble <- tbl(con_bq, "labevents") |>
   print(width = Inf)
 ```
 
-
-
 ### Q1.6 `chartevents` data
 
 Connect to `chartevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the chart events listed in HW3. Only keep the first chart events during ICU stay and pivot chart events to become variables/columns. Write all steps in _one_ chain of pipes.
 ```{r}
 # # TODO
 d_items <- tbl(con_bq, "d_items")
-
 chartevents_tble <- tbl(con_bq, "chartevents") |>
   select(subject_id, itemid, valuenum, charttime) |>
   filter(itemid %in% c(220045, 220179, 220180, 223761, 220210)) |>
@@ -144,7 +141,6 @@ chartevents_tble <- tbl(con_bq, "chartevents") |>
   pivot_wider(names_from = label, values_from = valuenum) |>
   arrange(subject_id, stay_id) |>
   print(width = Inf)
-
 ```
 
 ### Q1.7 Put things together
@@ -153,18 +149,15 @@ This step is similar to Q7 of HW3. Using _one_ chain of pipes `|>` to perform fo
 
 ```{r}
 # # TODO
-
 mimic_icu_cohort <- icustays_tble |>
-  # (ii) merge in admissions and patients tables
   left_join(admissions_tble, by = c("subject_id", "hadm_id")) |>
-  left_join(patients_tble, by = c("subject_id")) |>
-  # (iii) keep adults only (age at admission >= 18)
-  mutate(age_hadm = anchor_age + year(admittime) - anchor_year) |>
-  filter(age_hadm >= 18) |>
-  # (iv) merge in the labevents and chartevents tables
-  left_join(labevents_tble, by = c("subject_id")) |>
-  left_join(chartevents_tble, by = c("subject_id")) |>
-  # show_query() %>%
+  left_join(patients_tble, by = "subject_id") |>
+  mutate(age_intime = anchor_age + year(intime) - anchor_year) |>
+  filter(age_intime >= 18) |>
+  left_join(labevents_tble, by = c("subject_id","stay_id")) |>
+  left_join(chartevents_tble, by = c("subject_id","stay_id")) |>
+  arrange(subject_id, hadm_id, stay_id) |>
+  collect() |>
   print(width = Inf)
 ```
 
@@ -172,78 +165,75 @@ mimic_icu_cohort <- icustays_tble |>
 
 Perform the following preprocessing steps. (i) Lump infrequent levels into "Other" level for `first_careunit`, `last_careunit`, `admission_type`, `admission_location`, and `discharge_location`. (ii) Collapse the levels of `race` into `ASIAN`, `BLACK`, `HISPANIC`, `WHITE`, and `Other`. (iii) Create a new variable `los_long` that is `TRUE` when `los` is greater than or equal to 2 days. (iv) Summarize the data using `tbl_summary()`, stratified by `los_long`. Hint: `fct_lump` and `fct_collapse` from the `forcats` package can be useful.
 
+
 ```{r}
-# # TODO
 library(forcats)
-library(dplyr)
-library(forcats)
-library(gtsummary)
+```
 
-
-
+```{r}
 mimic_icu_cohort <- mimic_icu_cohort |>
   mutate(
     first_careunit = fct_lump(first_careunit,
-                              n= 4, 
-                              other_level  = "Other"),
+                              n = 4, 
+                              other_level = "Other"),
     last_careunit = fct_lump(last_careunit, 
-                             n =4, 
+                             n = 4, 
                              other_level = "Other"),
     admission_type = fct_lump(admission_type, 
-                              n =4, 
+                              n = 4, 
                               other_level = "Other"),
-    admission_location = fct_lump(admission_location , n =4,
-                                   other_level = "other "),
-    discharge_location = fct_lump(diccharge_location, n =4,
-                                 other_level = "other")
+    admission_location = fct_lump(admission_location , n = 4,
+                                  other_level = "Other "),
+    discharge_location = fct_lump(discharge_location, n = 4,
+                                  other_level = "Other")
     )
 
 mimic_icu_cohort$race <- 
   fct_collapse(mimic_icu_cohort$race,
-ASIAN =  c("ASIAN",
-          "ASIAN - ASIAN INDIAN",
-          "ASTAN - CHINESE",
-          "ASIAN - KOREAN", 
-          "ASIAN - SOUTH EAST ASIAN"),
-BLACK = c("BLACK/AFRICAN", 
-          "BLACK/AFRICAN AMERICAN", 
-         "BLACK/CAPE VERDEAN",
-         "BLACK/CARIBBEAN ISLAND"),
-HISPANIC = c("HISPANIC OR LATINO",
-            "HISPANIC/LATINO - CENTRAL AMERICAN",
-            "HISPANIC/LATINO - COLUMBIAN",
-            "HISPANIC/LATINO - CUBAN",
-            "HISPANIC/LATINO - DOMINICAN",
-            "HISPANIC/LATINO - GUATEMALAN",
-            "HISPANIC/LATINO - HONDURAN",
-           "HISPANIC/LATINO - MEXICAN",
-           "HISPANIC/LATINO - PUERTO RICAN",
-           "HISPANIC/LATINO - SALVADORAN"),
-WHITE = c("WHITE","WHITE - BRIAZILIAN",
-          "WHITE - EASTERN EUROPEAN",
-          "WHITE - OTHER EUROPEAN", "WHITE - RUSSIAN"),
-OTHER = c("AMERICAN INDIAN/ALASKA NATIVE",
-          "MULTIPLE RACE/ETHNICITY",
-          "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER",
-          "OTHER",
-          "PATIENT DECLINED TO ANSWER",
-          "PORTUGUESE",
-          "SOUTH AMERICAN",
-          "UNABLE TO OBTAIN",
-          "UNKNOWN")
+      ASIAN =  c("ASIAN",
+                 "ASIAN - ASIAN INDIAN",
+                 "ASIAN - CHINESE",
+                 "ASIAN - KOREAN", 
+                 "ASIAN - SOUTH EAST ASIAN"),
+      BLACK = c("BLACK/AFRICAN", 
+                "BLACK/AFRICAN AMERICAN", 
+                "BLACK/CAPE VERDEAN",
+                "BLACK/CARIBBEAN ISLAND"),
+      HISPANIC = c("HISPANIC OR LATINO",
+                   "HISPANIC/LATINO - CENTRAL AMERICAN",
+                   "HISPANIC/LATINO - COLUMBIAN",
+                   "HISPANIC/LATINO - CUBAN",
+                   "HISPANIC/LATINO - DOMINICAN",
+                   "HISPANIC/LATINO - GUATEMALAN",
+                   "HISPANIC/LATINO - HONDURAN",
+                   "HISPANIC/LATINO - MEXICAN",
+                   "HISPANIC/LATINO - PUERTO RICAN",
+                   "HISPANIC/LATINO - SALVADORAN"),
+      WHITE = c("WHITE","WHITE - BRAZILIAN",
+                "WHITE - EASTERN EUROPEAN",
+                "WHITE - OTHER EUROPEAN", "WHITE - RUSSIAN"),
+      OTHER = c("AMERICAN INDIAN/ALASKA NATIVE",
+                "MULTIPLE RACE/ETHNICITY",
+                "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER",
+                "OTHER",
+                "PATIENT DECLINED TO ANSWER",
+                "PORTUGUESE",
+                "SOUTH AMERICAN",
+                "UNABLE TO OBTAIN",
+                "UNKNOWN")
 )
 
 mimic_icu_cohort <- mimic_icu_cohort |>
-  mumate (los_long = los >= 2)
+  mutate(los_long = los >= 2)
 
-summary_table < mimic_icu_cohort |>
+summary_table <- mimic_icu_cohort |>
   select(first_careunit, last_careunit, los, admission_type,
          admission_location, discharge_location, insurance, language,
-         martital_status, race, hospital_expire_flag,gender, 
+         marital_status, race, hospital_expire_flag, gender, 
          dod, Sodium, Chloride, Creatinine, Potassium, 
          Glucose, Hematocrit, 'White Blood Cells' , Bicarbonate, 
          'Temperature Fahrenheit', 'Non Invasive Blood Pressure diastolic',
-         'Respiratory Rate','Non Invasive Blood Pressure systolic',
+         'Respiratory Rate', 'Non Invasive Blood Pressure systolic',
          'Heart Rate', age_intime, los_long) |>
   tbl_summary(by = los_long)
 
@@ -291,56 +281,5 @@ library(arrow)
 ```
 
 
-```{r}
-
-ui <- fluidPage(
-  # Application title
-  titlePanel("Patient Data Dashboard"),
-  
-  # Sidebar with a simple input
-  sidebarLayout(
-    sidebarPanel(
-      helpText("Select the data you wish to view:")
-      # Here you can add any inputs or controls
-    ),
-    
-    # Main panel for displaying outputs
-    mainPanel(
-    tabsetPanel(
-  # First tab: Patient Characteristics
-    tabPanel("Patient Characteristics", 
-    selectInput("variable", "Variable of interest",
-    choices = c("Last care unit", 
-     "Lab Events"
-      )),
-  checkboxInput("removeOutliers", 
-  "Remove outliers in IQR method for measurements?",
-                               value = FALSE)
-                ),
-        
-     # Second tab: Patient's ADT and ICU Stay Information
-   tabPanel("Patient's ADT and ICU Stay Information",
-      # Contents for Patient's ADT and ICU Stay Information
-     # Similarly, add UI elements relevant to this tab
-     
-   textOutput("adtIcuInformation"))
-        
-      )
-    )
-  )
-)
-
-# Define server logic
-server <- function(input, output) {
-  # Dummy outputs, replace with your actual data processing and output generation
-  
-  
-  output$patientCharacteristics <- renderText("Patient characteristics data goes here.")
-  output$adtIcuInformation <- renderText("Patient's ADT and ICU stay information goes here.")
-}
-
-# Run the application
-shinyApp(ui = ui, server = server)
-```
 
 
