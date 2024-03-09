@@ -179,29 +179,65 @@ library(dplyr)
 library(forcats)
 library(gtsummary)
 
-# Assuming `df` is your dataframe
 
-# Step (i)
-columns_to_lump <- c("first_careunit", "last_careunit", "admission_type", "admission_location", "discharge_location")
 
-df <- df %>%
-  mutate(across(all_of(columns_to_lump), ~fct_lump(f = ., prop = 0.05), .names = "{.col}_lumped"))
+mimic_icu_cohort <- mimic_icu_cohort |>
+  mutate(
+    first_careunit = fct_lump( first_careunit, n= 4, other_level  = "Other"),
+    last_careunit = fct_lump(last_careunit, n =4, other_level = "Other"),
+    admission_type = fct_lump(admission_type, n =4, other_level = "Other"),
+    admission_location = fct_lump(admission_location , n =4,
+                                   other_level = "other "),
+    discharge_location = fct_lump(diccharge_location, n =4,
+                                 other_level = "other")
+    )
 
-# Step (ii)
-df$race <- fct_collapse(df$race,
-  ASIAN = "ASIAN",
-  BLACK = "BLACK",
-  HISPANIC = "HISPANIC",
-  WHITE = "WHITE",
-  Other = c("Other", "UNKNOWN", "MULTIRACIAL")) # Adjust as necessary based on your actual 'race' categories
+mimic_icu_cohort$race <- 
+  fct_collapse(mimic_icu_cohort$race,
+ASIAN =  c("ASIAN",
+          "ASIAN - ASIAN INDIAN", "ASTAN - CHINESE",
+          "ASIAN - KOREAN", "ASIAN - SOUTH EAST ASIAN"),
+BLACK = c("BLACK/AFRICAN", "BLACK/AFRICAN AMERICAN", 
+         "BLACK/CAPE VERDEAN",
+         "BLACK/CARIBBEAN ISLAND"),
+HISPANIC = c("HISPANIC OR LATINO",
+            "HISPANIC/LATINO - CENTRAL AMERICAN",
+            "HISPANIC/LATINO - COLUMBIAN",
+            "HISPANIC/LATINO - CUBAN",
+            "HISPANIC/LATINO - DOMINICAN",
+            "HISPANIC/LATINO - GUATEMALAN",
+            "HISPANIC/LATINO - HONDURAN",
+           "HISPANIC/LATINO - MEXICAN",
+           "HISPANIC/LATINO - PUERTO RICAN",
+           "HISPANIC/LATINO - SALVADORAN"),
+WHITE = c("WHITE","WHITE - BRIAZILIAN",
+          "WHITE - EASTERN EUROPEAN",
+          "WHITE - OTHER EUROPEAN", "WHITE - RUSSIAN"),
+OTHER = c("AMERICAN INDIAN/ALASKA NATIVE",
+          "MULTIPLE RACE/ETHNICITY",
+          "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER",
+          "OTHER",
+          "PATIENT DECLINED TO ANSWER",
+          "PORTUGUESE",
+          "SOUTH AMERICAN",
+          "UNABLE TO OBTAIN",
+          "UNKNOWN")
+)
+mimic_icu_cohort <- mimic_icu_cohort |>
+  mumate (los_long = los >= 2)
 
-# Step (iii)
-df$los_long <- df$los >= 2
+summary_table < mimic_icu_cohort |>
+  select(first_careunit, last_careunit, los, admission_type,
+         admission_location, discharge_location, insurance, language,
+         martital_status, race, hospital_expire_flag,gender, 
+         dod, Sodium, Chloride, Creatinine, Potassium, 
+         Glucose, Hematocrit, 'White Blood Cells' , Bicarbonate, 
+         'Temperature Fahrenheit', 'Non Invasive Blood Pressure diastolic',
+         'Respiratory Rate','Non Invasive Blood Pressure systolic',
+         'Heart Rate', age_intime, los_long) |>
+  tbl_summary(by = los_long)
 
-# Step (iv)
-summary_table <- tbl_summary(df, by = los_long)
-
-    
+summary.table         
 ```
 
 
