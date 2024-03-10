@@ -12,7 +12,7 @@ format:
     toc-location: left
     code-fold: false
 execute:
-  eval: false
+  eval: TRUE
 ---
 
 Display machine information:
