@@ -49,9 +49,6 @@ mimic_icu_cohort <- mimic_icu_cohort %>%
     age_intime,
     admit_provider_id
   )) %>%
-mutate(
-  los_long = ifelse(los_long > 2, "long", "short")
-) %>%
 mutate(los_long = as.factor(los_long),
        gender = as.factor(gender),
        insurance = as.factor(insurance),
@@ -68,7 +65,8 @@ set.seed(203)
 
 # sort
 mimiciv_icu_cohort <- mimic_icu_cohort |>
-  arrange(subject_id, hadm_id, stay_id)
+  arrange(subject_id, hadm_id, stay_id) |>
+  select(-subject_id, -hadm_id, -stay_id)
 
 data_split <- initial_split(
   mimiciv_icu_cohort,
@@ -92,84 +90,87 @@ norm_recipe <-
     data = mimic_other
   ) %>%
   # create traditional dummy variables
-  step_impute_mean(where(is.numeric)) %>%
-  step_impute_mode(all_nominal()) %>%
-  step_dummy(all_nominal_predictors()) %>%
+  step_impute_mean(all_numeric(),-all_outcomes()) %>%
+  step_impute_mode(all_nominal(),-all_outcomes()) %>%
+  step_dummy(all_nominal(),-all_outcomes()) %>%
   # zero-variance filter
-  step_zv(all_predictors())
+  step_zv(all_numeric_predictors()) %>%
+  step_normalize(all_numeric_predictors())
   # center and scale numeric data
   # step_log(Salary, base = 10) %>%
   # estimate the means and standard deviations
+norm_recipe
 ```
 
 ```{r}
-lasso_mod <-
-  logistic_reg(penalty = tune(), mixture = 1,
-               mode = "classification") %>%
-  set_engine("glmnet")
-lasso_mod
+logit_mod <-
+  logistic_reg(penalty = tune(), mixture = tune()
+               ) %>%
+  set_engine("glmnet", standardize = FALSE) %>%
+  print()
 ```
 
 ```{r}
-lr_workflow <-
+logit_workflow <-
   workflow() %>%
   add_recipe(norm_recipe) %>%
-  add_model(lasso_mod)
-lr_workflow
+  add_model(logit_mod)
+logit_workflow
 ```
 
 ```{r}
-lambda_grid <- grid_regular(
+param_grid <- grid_regular(
   penalty(
-    range = c(0, 1),
-    trans = log10_trans()
-  ),
-  levels = 100
-)
+    range = c(-6, 3)),
+  mixture(),
+  levels = c(100,5)
+) %>%
+  print()
 ```
 
 ```{r}
 set.seed(203)
-folds <- vfold_cv(mimic_other, v = 5, strata = los_long)
+
+folds <- vfold_cv(mimic_other, v = 5)
 folds
 ```
 
 ```{r}
-lasso_fit <-
-  lr_workflow %>%
+logit_fit <-
+  logit_workflow %>%
   tune_grid(
     resamples = folds,
-    grid = lambda_grid
+    grid = param_grid,
+    metrics = metric_set(roc_auc, accuracy)
   )
-lasso_fit
+logit_fit
 ```
 
 ```{r}
-lasso_fit %>%
+logit_fit %>%
   collect_metrics() %>%
   print(width = Inf) %>%
-  filter(.metric == "rmse") %>%
+  filter(.metric == "roc_auc") %>%
   ggplot(mapping = aes(x = penalty, y = mean)) + 
-  geom_point() + 
-  geom_line() + 
-  labs(x = "Penalty", y = "CV RMSE") + 
-  scale_x_log10(labels = scales::label_number())
+  geom_point() +
+  labs(x = "Penalty", y = "CV AUC") + 
+  scale_x_log10()
 ```
 
 ```{r}
-lasso_fit %>%
-  show_best("rmse")
+logit_fit %>%
+  show_best("roc_auc")
 ```
 
 ```{r}
-best_lasso <-lasso_fit %>%
-  select_best("rmse")
-best_lasso
+best_logit <-logit_fit %>%
+  select_best("roc_auc")
+best_logit
 ```
 
 ```{r}
-final_wf <- lr_workflow %>%
-  finalize_workflow(select(best_lasso))
+final_wf <- logit_workflow %>%
+  finalize_workflow(best_logit)
 final_wf
 ```
 
@@ -191,7 +192,7 @@ rf_mod <-
   rand_forest(
     mode = "classification",
     mtry = tune(),
-    trees = 1000
+    trees = tune()
   ) %>%
   set_engine("ranger")
 ```
@@ -205,19 +206,13 @@ rf_workflow <-
 
 ```{r}
 param_grid <- grid_regular(
-  trees(range = c(100L, 500L)),
+  trees(range = c(100L, 300L)),
   mtry(range = c(1L, 5L)),
   levels = c(5,5)
-)
+  )
 param_grid
 ```
 
-```{r}
-set.seed(203)
-
-folds<- vfold_cv(mimic_other,v =5)
-folds
-```
 
 ```{r}
 rf_fit <-
@@ -253,7 +248,7 @@ best_rf
 
 ```{r}
 final_wf <- rf_workflow %>%
-  finalize_workflow(select(best_rf))
+  finalize_workflow(best_rf)
 final_wf
 ```
 
@@ -287,7 +282,7 @@ gb_workflow <-
   workflow() %>%
   add_recipe(norm_recipe) %>%
   add_model(gb_mod)
-gb_wf
+gb_workflow
 ```
 
 ```{r}
@@ -295,15 +290,8 @@ param_grid <- grid_regular(
   tree_depth(range = c(1L, 3L)),
   learn_rate(range = c(-5, 2), trans = log10_trans()),
   levels = c(3, 10)
-)
+  )
 param_grid
-```
-
-```{r}
-set.seed(203)
-
-folds <- vfold_cv(mimic_other, v = 5)
-folds
 ```
 
 ```{r}
@@ -318,10 +306,10 @@ gb_fit
 ```
 
 ```{r}
-gb_fiyt %>%
-  collect_metrics() %>%
-  print(width = Inf) %>%
-  filter(.metric == "roc_auc") %>%
+gb_fit |>
+  collect_metrics() |>
+  print(width = Inf) |>
+  filter(.metric == "roc_auc") |>
   ggplot(mapping = aes(x = learn_rate, y = mean, color = factor(tree_depth))) +
   geom_point() +
   labs(x = "Learning Rate", y = "CV AUC") +
@@ -341,7 +329,7 @@ best_gb
 
 ```{r}
 final_wf <- gb_workflow %>%
-  finalize_workflow(select(best_gb))
+  finalize_workflow(best_gb)
 final_wf
 ```
 
