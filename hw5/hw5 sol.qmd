@@ -19,23 +19,342 @@ Using the ICU cohort `mimiciv_icu_cohort.rds` you built in Homework 4, develop a
 
 1. Data preprocessing and feature engineering.
 
+```{r}
+library(GGally)
+library(gtsummary)
+library(dplyr)
+library(tidymodels)
+library(tidyverse)
+```
+
+```{r}
+mimic_icu_cohort <- readRDS("mimic_icu_cohort.rds")
+```
+
+```{r}
+mimic_icu_cohort <- mimic_icu_cohort %>%
+  select(-c(
+    last_careunit,
+    intime,
+    outtime,
+    los,
+    deathtime,
+    admittime,
+    dischtime,
+    discharge_location,
+    dod,
+    anchor_year_group,
+    edregtime,
+    edouttime,
+    age_intime,
+    admit_provider_id
+  )) %>%
+mutate(
+  los_long = ifelse(los_long > 2, "long", "short")
+) %>%
+mutate(los_long = as.factor(los_long),
+       gender = as.factor(gender),
+       insurance = as.factor(insurance),
+       language = as.factor(language),
+       marital_status = as.factor(marital_status)
+       )
+```
+
+
 2. Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
 ```{r}
 #| eval: false
 set.seed(203)
 
 # sort
-mimiciv_icu_cohort <- mimiciv_icu_cohort |>
+mimiciv_icu_cohort <- mimic_icu_cohort |>
   arrange(subject_id, hadm_id, stay_id)
 
 data_split <- initial_split(
-  mimiciv_icu_cohort, 
+  mimiciv_icu_cohort,
   # stratify by los_long
-  strata = "los_long", 
+  strata = "los_long",
   prop = 0.5
-  )
+)
+mimic_other <- training(data_split)
+mimic_test <- testing(data_split)
+dim(mimic_other)
+dim(mimic_test)
 ```
 
 3. Train and tune the models using the training set.
+
+#Lasso
+```{r}
+norm_recipe <-
+  recipe(
+    los_long ~ .,
+    data = mimic_other
+  ) %>%
+  # create traditional dummy variables
+  step_impute_mean(where(is.numeric)) %>%
+  step_impute_mode(all_nominal()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  # zero-variance filter
+  step_zv(all_predictors())
+  # center and scale numeric data
+  # step_log(Salary, base = 10) %>%
+  # estimate the means and standard deviations
+```
+
+```{r}
+lasso_mod <-
+  logistic_reg(penalty = tune(), mixture = 1,
+               mode = "classification") %>%
+  set_engine("glmnet")
+lasso_mod
+```
+
+```{r}
+lr_workflow <-
+  workflow() %>%
+  add_recipe(norm_recipe) %>%
+  add_model(lasso_mod)
+lr_workflow
+```
+
+```{r}
+lambda_grid <- grid_regular(
+  penalty(
+    range = c(0, 1),
+    trans = log10_trans()
+  ),
+  levels = 100
+)
+```
+
+```{r}
+set.seed(203)
+folds <- vfold_cv(mimic_other, v = 5, strata = los_long)
+folds
+```
+
+```{r}
+lasso_fit <-
+  lr_workflow %>%
+  tune_grid(
+    resamples = folds,
+    grid = lambda_grid
+  )
+lasso_fit
+```
+
+```{r}
+lasso_fit %>%
+  collect_metrics() %>%
+  print(width = Inf) %>%
+  filter(.metric == "rmse") %>%
+  ggplot(mapping = aes(x = penalty, y = mean)) + 
+  geom_point() + 
+  geom_line() + 
+  labs(x = "Penalty", y = "CV RMSE") + 
+  scale_x_log10(labels = scales::label_number())
+```
+
+```{r}
+lasso_fit %>%
+  show_best("rmse")
+```
+
+```{r}
+best_lasso <-lasso_fit %>%
+  select_best("rmse")
+best_lasso
+```
+
+```{r}
+final_wf <- lr_workflow %>%
+  finalize_workflow(select(best_lasso))
+final_wf
+```
+
+```{r}
+final_fit <-
+  final_wf %>%
+  last_fit(data_split)
+final_fit
+```
+
+```{r}
+final_fit %>%
+  collect_metrics()
+```
+
+# Random Forest
+```{r}
+rf_mod <-
+  rand_forest(
+    mode = "classification",
+    mtry = tune(),
+    trees = 1000
+  ) %>%
+  set_engine("ranger")
+```
+
+```{r}
+rf_workflow <-
+  workflow() %>%
+  add_recipe(norm_recipe) %>%
+  add_model(rf_mod)
+```
+
+```{r}
+param_grid <- grid_regular(
+  trees(range = c(100L, 500L)),
+  mtry(range = c(1L, 5L)),
+  levels = c(5,5)
+)
+param_grid
+```
+
+```{r}
+set.seed(203)
+
+folds<- vfold_cv(mimic_other,v =5)
+folds
+```
+
+```{r}
+rf_fit <-
+  rf_workflow %>%
+  tune_grid(
+    resamples = folds,
+    grid = param_grid,
+    metrics = metric_set(roc_auc, accuracy)
+  )
+rf_fit
+```
+
+```{r}
+rf_fit %>%
+  collect_metrics() %>%
+  filter(.metric == "roc_auc") %>%
+  ggplot(mapping = aes(x = trees, y = mean)) + 
+  geom_point() + 
+  geom_line() + 
+  labs(x = "Num. of Trees", y = "CV AUC")
+```
+
+```{r}
+rf_fit %>%
+  show_best("roc_auc")
+```
+
+```{r}
+best_rf <- rf_fit %>%
+  select_best("roc_auc")
+best_rf
+```
+
+```{r}
+final_wf <- rf_workflow %>%
+  finalize_workflow(select(best_rf))
+final_wf
+```
+
+```{r}
+final_fit <-
+  final_wf %>%
+  last_fit(data_split)
+final_fit
+```
+
+```{r}
+final_fit %>%
+  collect_metrics()
+```
+
+# XGBoost
+```{r}
+gb_mod <-
+  boost_tree(
+    mode = "classification",
+    trees = 1000,
+    tree_depth = tune(),
+    learn_rate = tune()
+  ) %>%
+  set_engine("xgboost")
+gb_mod
+```
+
+```{r}
+gb_workflow <-
+  workflow() %>%
+  add_recipe(norm_recipe) %>%
+  add_model(gb_mod)
+gb_wf
+```
+
+```{r}
+param_grid <- grid_regular(
+  tree_depth(range = c(1L, 3L)),
+  learn_rate(range = c(-5, 2), trans = log10_trans()),
+  levels = c(3, 10)
+)
+param_grid
+```
+
+```{r}
+set.seed(203)
+
+folds <- vfold_cv(mimic_other, v = 5)
+folds
+```
+
+```{r}
+gb_fit <-
+  gb_workflow %>%
+  tune_grid(
+    resamples = folds,
+    grid = param_grid,
+    metrics = metric_set(roc_auc, accuracy)
+  )
+gb_fit
+```
+
+```{r}
+gb_fiyt %>%
+  collect_metrics() %>%
+  print(width = Inf) %>%
+  filter(.metric == "roc_auc") %>%
+  ggplot(mapping = aes(x = learn_rate, y = mean, color = factor(tree_depth))) +
+  geom_point() +
+  labs(x = "Learning Rate", y = "CV AUC") +
+  scale_x_log10()
+```
+
+```{r}
+gb_fit %>%
+  show_best("roc_auc")
+```
+
+```{r}
+best_gb <- gb_fit %>%
+  select_best("roc_auc")
+best_gb
+```
+
+```{r}
+final_wf <- gb_workflow %>%
+  finalize_workflow(select(best_gb))
+final_wf
+```
+
+```{r}
+final_fit <-
+  final_wf %>%
+  last_fit(data_split)
+final_fit
+```
+
+```{r}
+final_fit %>%
+  collect_metrics()
+```
 
 4. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?

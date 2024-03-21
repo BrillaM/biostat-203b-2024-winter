@@ -44,7 +44,7 @@ Below is an outline of steps. In this homework, we exclusively work with the Big
 
 Authenticate with BigQuery using the service account token. Please place the service account token (shared via BruinLearn) in the working directory (same folder as your qmd file). Do **not** add this token to your git repository.
 ```{r}
-# path to the service account token 
+# path to the service account token
 satoken <- "biostat-203b-2024-winter-313290ce47a6.json"
 # BigQuery authentication using service account
 bq_auth(path = satoken)
@@ -53,10 +53,10 @@ Connect to BigQuery database `mimic4_v2_2` in GCP (Google Cloud Platform), using
 ```{r}
 # connect to the BigQuery database `biostat-203b-2024-winter.mimic4_v2_2`
 con_bq <- dbConnect(
-    bigrquery::bigquery(),
-    project = "biostat-203b-2024-winter",
-    dataset = "mimic4_v2_2",
-    billing = "biostat-203b-2024-winter"
+  bigrquery::bigquery(),
+  project = "biostat-203b-2024-winter",
+  dataset = "mimic4_v2_2",
+  billing = "biostat-203b-2024-winter"
 )
 con_bq
 ```
@@ -89,7 +89,7 @@ admissions_tble <- tbl(con_bq, "admissions") |>
 Connect to the `patients` table.
 ```{r}
 # # TODO
-patients_tble <-tbl(con_bq, "patients") |>
+patients_tble <- tbl(con_bq, "patients") |>
   # show_query() |>
   print(width = Inf)
 ```
@@ -103,11 +103,11 @@ d_labitems <- tbl(con_bq, "d_labitems")
 labevents_tble <- tbl(con_bq, "labevents") |>
   select(subject_id, itemid, valuenum, storetime) |>
   filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931)) |>
-  semi_join(icustays_tble, by=  "subject_id") |>
+  semi_join(icustays_tble, by = "subject_id") |>
   left_join(icustays_tble, by = "subject_id") |>
   group_by(subject_id, stay_id, itemid) |>
   filter(storetime < intime) |>
-  arrange(storetime,.by_group = TRUE) |>
+  arrange(storetime, .by_group = TRUE) |>
   slice_max(order_by = storetime) |>
   ungroup() |>
   select(subject_id, stay_id, itemid, valuenum) |>
@@ -128,11 +128,11 @@ d_items <- tbl(con_bq, "d_items")
 chartevents_tble <- tbl(con_bq, "chartevents") |>
   select(subject_id, itemid, valuenum, charttime) |>
   filter(itemid %in% c(220045, 220179, 220180, 223761, 220210)) |>
-  semi_join(icustays_tble, by=  "subject_id") |>
+  semi_join(icustays_tble, by = "subject_id") |>
   left_join(icustays_tble, by = "subject_id") |>
   group_by(subject_id, stay_id, itemid) |>
   filter(charttime > intime) |>
-  arrange(charttime,.by_group = TRUE) |>
+  arrange(charttime, .by_group = TRUE) |>
   slice_min(order_by = charttime) |>
   ungroup() |>
   select(subject_id, stay_id, itemid, valuenum) |>
@@ -155,8 +155,8 @@ mimic_icu_cohort <- icustays_tble |>
   left_join(patients_tble, by = "subject_id") |>
   mutate(age_intime = anchor_age + year(intime) - anchor_year) |>
   filter(age_intime >= 18) |>
-  left_join(labevents_tble, by = c("subject_id","stay_id")) |>
-  left_join(chartevents_tble, by = c("subject_id","stay_id")) |>
+  left_join(labevents_tble, by = c("subject_id", "stay_id")) |>
+  left_join(chartevents_tble, by = c("subject_id", "stay_id")) |>
   arrange(subject_id, hadm_id, stay_id) |>
   collect() |>
   print(width = Inf)
@@ -175,70 +175,89 @@ library(forcats)
 mimic_icu_cohort <- mimic_icu_cohort |>
   mutate(
     first_careunit = fct_lump(first_careunit,
-                              n = 4, 
-                              other_level = "Other"),
-    last_careunit = fct_lump(last_careunit, 
-                             n = 4, 
-                             other_level = "Other"),
-    admission_type = fct_lump(admission_type, 
-                              n = 4, 
-                              other_level = "Other"),
-    admission_location = fct_lump(admission_location , n = 4,
-                                  other_level = "Other "),
-    discharge_location = fct_lump(discharge_location, n = 4,
-                                  other_level = "Other")
+      n = 4,
+      other_level = "Other"
+    ),
+    last_careunit = fct_lump(last_careunit,
+      n = 4,
+      other_level = "Other"
+    ),
+    admission_type = fct_lump(admission_type,
+      n = 4,
+      other_level = "Other"
+    ),
+    admission_location = fct_lump(admission_location,
+      n = 4,
+      other_level = "Other "
+    ),
+    discharge_location = fct_lump(discharge_location,
+      n = 4,
+      other_level = "Other"
     )
+  )
 
-mimic_icu_cohort$race <- 
+mimic_icu_cohort$race <-
   fct_collapse(mimic_icu_cohort$race,
-      ASIAN =  c("ASIAN",
-                 "ASIAN - ASIAN INDIAN",
-                 "ASIAN - CHINESE",
-                 "ASIAN - KOREAN", 
-                 "ASIAN - SOUTH EAST ASIAN"),
-      BLACK = c("BLACK/AFRICAN", 
-                "BLACK/AFRICAN AMERICAN", 
-                "BLACK/CAPE VERDEAN",
-                "BLACK/CARIBBEAN ISLAND"),
-      HISPANIC = c("HISPANIC OR LATINO",
-                   "HISPANIC/LATINO - CENTRAL AMERICAN",
-                   "HISPANIC/LATINO - COLUMBIAN",
-                   "HISPANIC/LATINO - CUBAN",
-                   "HISPANIC/LATINO - DOMINICAN",
-                   "HISPANIC/LATINO - GUATEMALAN",
-                   "HISPANIC/LATINO - HONDURAN",
-                   "HISPANIC/LATINO - MEXICAN",
-                   "HISPANIC/LATINO - PUERTO RICAN",
-                   "HISPANIC/LATINO - SALVADORAN"),
-      WHITE = c("WHITE","WHITE - BRAZILIAN",
-                "WHITE - EASTERN EUROPEAN",
-                "WHITE - OTHER EUROPEAN", "WHITE - RUSSIAN"),
-      OTHER = c("AMERICAN INDIAN/ALASKA NATIVE",
-                "MULTIPLE RACE/ETHNICITY",
-                "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER",
-                "OTHER",
-                "PATIENT DECLINED TO ANSWER",
-                "PORTUGUESE",
-                "SOUTH AMERICAN",
-                "UNABLE TO OBTAIN",
-                "UNKNOWN")
-)
+    ASIAN = c(
+      "ASIAN",
+      "ASIAN - ASIAN INDIAN",
+      "ASIAN - CHINESE",
+      "ASIAN - KOREAN",
+      "ASIAN - SOUTH EAST ASIAN"
+    ),
+    BLACK = c(
+      "BLACK/AFRICAN",
+      "BLACK/AFRICAN AMERICAN",
+      "BLACK/CAPE VERDEAN",
+      "BLACK/CARIBBEAN ISLAND"
+    ),
+    HISPANIC = c(
+      "HISPANIC OR LATINO",
+      "HISPANIC/LATINO - CENTRAL AMERICAN",
+      "HISPANIC/LATINO - COLUMBIAN",
+      "HISPANIC/LATINO - CUBAN",
+      "HISPANIC/LATINO - DOMINICAN",
+      "HISPANIC/LATINO - GUATEMALAN",
+      "HISPANIC/LATINO - HONDURAN",
+      "HISPANIC/LATINO - MEXICAN",
+      "HISPANIC/LATINO - PUERTO RICAN",
+      "HISPANIC/LATINO - SALVADORAN"
+    ),
+    WHITE = c(
+      "WHITE", "WHITE - BRAZILIAN",
+      "WHITE - EASTERN EUROPEAN",
+      "WHITE - OTHER EUROPEAN", "WHITE - RUSSIAN"
+    ),
+    OTHER = c(
+      "AMERICAN INDIAN/ALASKA NATIVE",
+      "MULTIPLE RACE/ETHNICITY",
+      "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER",
+      "OTHER",
+      "PATIENT DECLINED TO ANSWER",
+      "PORTUGUESE",
+      "SOUTH AMERICAN",
+      "UNABLE TO OBTAIN",
+      "UNKNOWN"
+    )
+  )
 
 mimic_icu_cohort <- mimic_icu_cohort |>
   mutate(los_long = los >= 2)
 
 summary_table <- mimic_icu_cohort |>
-  select(first_careunit, last_careunit, los, admission_type,
-         admission_location, discharge_location, insurance, language,
-         marital_status, race, hospital_expire_flag, gender, 
-         dod, Sodium, Chloride, Creatinine, Potassium, 
-         Glucose, Hematocrit, 'White Blood Cells' , Bicarbonate, 
-         'Temperature Fahrenheit', 'Non Invasive Blood Pressure diastolic',
-         'Respiratory Rate', 'Non Invasive Blood Pressure systolic',
-         'Heart Rate', age_intime, los_long) |>
+  select(
+    first_careunit, last_careunit, los, admission_type,
+    admission_location, discharge_location, insurance, language,
+    marital_status, race, hospital_expire_flag, gender,
+    dod, Sodium, Chloride, Creatinine, Potassium,
+    Glucose, Hematocrit, "White Blood Cells", Bicarbonate,
+    "Temperature Fahrenheit", "Non Invasive Blood Pressure diastolic",
+    "Respiratory Rate", "Non Invasive Blood Pressure systolic",
+    "Heart Rate", age_intime, los_long
+  ) |>
   tbl_summary(by = los_long)
 
-summary_table         
+summary_table
 ```
 
 
@@ -272,8 +291,3 @@ Although it is not a good practice to add big data files to git, for grading pur
 ## Q2. Shiny app
 
 Develop a Shiny app for exploring the ICU cohort data created in Q1. The app should reside in the `mimiciv_shiny` folder. The app should contain at least two tabs. One tab provides easy access to the graphical and numerical summaries of variables (demographics, lab measurements, vitals) in the ICU cohort. The other allows user to choose a specific patient in the cohort and display the patient's ADT and ICU stay information as we did in Q1 of HW3.
-
-
-
-
-
