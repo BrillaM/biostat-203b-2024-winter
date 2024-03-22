@@ -25,6 +25,7 @@ library(gtsummary)
 library(dplyr)
 library(tidymodels)
 library(tidyverse)
+library(ranger)
 ```
 
 ```{r}
@@ -60,7 +61,6 @@ mutate(los_long = as.factor(los_long),
 
 2. Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
 ```{r}
-#| eval: false
 set.seed(203)
 
 # sort
@@ -186,6 +186,19 @@ final_fit %>%
   collect_metrics()
 ```
 
+```{r}
+final_tree <- extract_workflow(final_fit)
+final_tree
+```
+
+```{r}
+library(vip)
+
+final_tree %>%
+ extract_fit_parsnip() %>%
+  vip()
+```
+
 # Random Forest
 ```{r}
 rf_mod <-
@@ -263,6 +276,8 @@ final_fit
 final_fit %>%
   collect_metrics()
 ```
+
+
 
 # XGBoost
 ```{r}
@@ -345,4 +360,26 @@ final_fit %>%
   collect_metrics()
 ```
 
+
 4. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
+
+Lasso Logistic Regression: The best performing Lasso model, as per the images, had an ROC AUC of approximately 0.617 and accuracy of about 0.58. Lasso models are known to enforce sparsity, which can help in feature selection by shrinking the coefficients of less important variables to zero.
+Random Forest: The Random Forest model's performance, as displayed in the images, shows an ROC AUC ranging from about 0.65 to 0.66 across different numbers of trees used. Random Forest is an ensemble method which can handle a large number of features and can capture complex structures in the data, often performing well out of the box.
+XGBoost: The XGBoost model configurations showed results with an ROC AUC of approximately 0.658 at best, which is slightly better than the Random Forest models, and an accuracy of 0.611. XGBoost is another ensemble method that uses gradient boosting framework and is well-known for its performance in structured datasets.
+The XGBoost has the highest ROC AUC, so it considered the best performer among the three models.However, the accuracy is comparable with the Lasso model. Even XGBoost and Random Forest have the best performance metrics, they are generally considered less interpretable than linear models like Lasso, due to their complex structure of multiple decision trees.
+XGboost has the better performance than Random Forest, both of them are better than Lasso logistic Regression. Lasso Logistic Regression offers the most interpretable model due to its linear nature. The coefficients of the model can directly indicate the importance and the direction of the relationship of each feature with the outcome.There's a trade-off between the performance and interpretability of these models. While ensemble methods like Random Forest and XGBoost may offer better prediction performance, they do so at the expense of being less interpretable.
+Importent Features:
+Non Invasive Blood Pressure systolic,
+first careunit Medical.lntensive.Care.Unit..MlCU.,
+first careunit Medical.Surgical.intensive.Care.Unit..MiCU.SICU,
+admission locatiOn TRANSFER.FROM.HOSPITAL,
+Respiratory Rate,
+hospital expire flag,
+Temperature Fahrenheit,
+admission tyPe SURGICAL.SAME.DAY.ADMISSION,
+Hematocrit,
+White Blood Cells.
+Those are the most 10 important features in predicting long ICU stays. From the most importent which is around 2.0, to the less importent which is around 0.1.
+
+
+
